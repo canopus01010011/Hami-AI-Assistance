@@ -1,17 +1,18 @@
 import ChatBox from "../components/ChatBox";
 
+// Import your Hami GIFs here:
+// import idleGif from "../assets/hami/idle.gif";
+// Then pass the right one as hamiGif={idleGif} to ChatBox
+
 function Home() {
   return (
-    <div
-      style={{
-        maxWidth: "800px",
-        margin: "40px auto",
-      }}
-    >
+    <>
       <h1>🐹 Hami AI</h1>
-
-      <ChatBox />
-    </div>
+      <p className="subtitle">Your cute personal schedule assistant</p>
+      <ChatBox
+        // hamiGif={idleGif}   ← uncomment once you import the GIF
+      />
+    </>
   );
 }
 

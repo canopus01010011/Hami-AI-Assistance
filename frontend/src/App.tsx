@@ -1,7 +1,5 @@
-import Home from "./pages/Home";
+import HamiPage from "./pages/HamiPage";
 
-function App() {
-  return <Home />;
+export default function App() {
+  return <HamiPage />;
 }
-
-export default App;
