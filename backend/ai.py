@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from dotenv import load_dotenv
 from pathlib import Path
 from urllib.parse import quote_plus
+from elevenlabs.client import ElevenLabs
 
 try:
     from backend.database import add_task, get_tasks, delete_task, get_tasks_for_date, get_tasks_by_type, search_tasks, update_task_date
@@ -436,6 +437,39 @@ Keep responses under 3 sentences unless explaining something complex.
 User: {message}
 """
     reply = call_gemini(prompt, model="gemini-2.5-flash")
+
     if reply:
-        return {"reply": reply, "mood": "idle"}
-    return {"reply": "Oops, I got a bit confused there! Could you try again?", "mood": "warning"}
+        audio = generate_hami_voice(reply)
+
+        return {
+        "reply": reply,
+        "mood": "idle",
+        "audio": audio
+    }
+
+    return {
+    "reply": "Oops, I got a bit confused there! Could you try again?",
+    "mood": "warning"
+}
+
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+
+client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+
+
+def generate_hami_voice(text):
+    audio = client.text_to_speech.convert(
+        voice_id="h3DXxA6JrxxXvfICF1MT",
+        model_id="eleven_multilingual_v2",
+        text=text
+    )
+
+    os.makedirs("audio", exist_ok=True)
+
+    filename = f"audio/hami_{int(datetime.now().timestamp())}.mp3"
+
+    with open(filename, "wb") as f:
+        for chunk in audio:
+            f.write(chunk)
+
+    return filename

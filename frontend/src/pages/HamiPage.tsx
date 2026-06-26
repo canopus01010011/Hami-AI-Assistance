@@ -91,9 +91,6 @@ export default function HamiPage() {
   const [currentView, setCurrentView] = useState<View>("chat");
   const [happiness, setHappiness] = useState(75);
   const [hunger, setHunger] = useState(60);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>("");
-  const [hamiVoice, setHamiVoice] = useState<SpeechSynthesisVoice | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -105,24 +102,7 @@ export default function HamiPage() {
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const messages = activeSession?.messages ?? [];
 
-  useEffect(() => {
-    const loadVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
-      setVoices(availableVoices);
-      const defaultVoice = availableVoices.find(v => {
-        const name = v.name.toLowerCase();
-        return name.includes("cute") || name.includes("female") || name.includes("child") || name.includes("samantha") || name.includes("alloy");
-      }) || availableVoices[0] || null;
-      if (defaultVoice) {
-        setHamiVoice(defaultVoice);
-        if (!selectedVoiceURI) setSelectedVoiceURI(defaultVoice.voiceURI);
-      }
-    };
 
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    return () => { window.speechSynthesis.onvoiceschanged = null; };
-  }, [selectedVoiceURI]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -166,6 +146,7 @@ export default function HamiPage() {
         body: JSON.stringify({ message: text }),
       });
       const data = await res.json();
+      console.log("SERVER RESPONSE:", data);
       const rawReply = String(data.reply ?? "");
       const imageUrl = data.image_url ?? data.imageUrl ?? data.image ?? extractImageUrlFromText(rawReply);
       const cleanReply = sanitizeReplyText(rawReply);
@@ -184,16 +165,15 @@ export default function HamiPage() {
         ...s,
         messages: [...s.messages.filter(m => m.id !== "thinking"), hamiMsg],
       }));
-      if (window.speechSynthesis && data.reply) {
-        const utterance = new SpeechSynthesisUtterance(data.reply);
-        utterance.rate = 0.95;
-        utterance.pitch = 1.45;
-        utterance.volume = 1;
-        const useVoice = voices.find(v => v.voiceURI === selectedVoiceURI) || hamiVoice;
-        if (useVoice) utterance.voice = useVoice;
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utterance);
-      }
+     if (data.audio) {
+    const audio = new Audio(
+        `http://127.0.0.1:8000/${data.audio}`
+    );
+
+    audio.play().catch(err => {
+        console.error(err);
+    });
+}
     } catch {
       const errMsg: Message = { id: makeId(), sender: "hami", text: "Oops, I can't reach the server right now. Is the backend running?", timestamp: Date.now() };
       setMood("warning");
@@ -332,20 +312,7 @@ export default function HamiPage() {
                   {messages.filter(m => m.sender === "user").length} messages
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "11px", color: "var(--text-muted)" }}>
-                  <label htmlFor="voice-select" style={{ fontWeight: 700 }}>Voice</label>
-                  <select
-                    id="voice-select"
-                    value={selectedVoiceURI}
-                    onChange={e => setSelectedVoiceURI(e.target.value)}
-                    style={{ padding: "6px 8px", borderRadius: "10px", border: "1.5px solid var(--border)", background: "white", color: "var(--text)" }}
-                  >
-                    {voices.length === 0 && <option value="">Loading...</option>}
-                    {voices.map(voice => (
-                      <option key={voice.voiceURI} value={voice.voiceURI}>
-                        {voice.name} ({voice.lang})
-                      </option>
-                    ))}
-                  </select>
+
                 </div>
               </div>
 

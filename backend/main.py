@@ -13,11 +13,17 @@ except ImportError:
     from database import add_reminder, get_due_reminders, mark_reminder_sent, get_all_reminders, delete_reminder
 import threading
 from datetime import datetime, timezone
+from fastapi.staticfiles import StaticFiles
+import os
 
 # In-memory recent notifications queue (cleared on read)
 recent_notifications: list[dict] = []
 
 app = FastAPI()
+
+os.makedirs("audio", exist_ok=True)
+
+app.mount("/audio", StaticFiles(directory="audio"), name="audio")
 
 app.add_middleware(
     CORSMiddleware,

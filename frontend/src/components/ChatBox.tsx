@@ -44,30 +44,9 @@ export default function ChatBox({ hamiGif }: Props) {
   const [currentMood, setCurrentMood] = useState("idle");
   const [isLoading, setIsLoading] = useState(false);
   const [bubbleText, setBubbleText] = useState("Hi there! I'm Hami 🐹");
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
-  const [hamiVoice, setHamiVoice] = useState<SpeechSynthesisVoice | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const loadVoices = () => {
-      const available = window.speechSynthesis.getVoices();
-      setVoices(available);
-      const defaultVoice = available.find(v => {
-        const name = v.name.toLowerCase();
-        return name.includes("cute") || name.includes("female") || name.includes("child") || name.includes("samantha") || name.includes("alloy");
-      }) || available[0] || null;
-      if (defaultVoice) {
-        setHamiVoice(defaultVoice);
-        if (!selectedVoiceURI) setSelectedVoiceURI(defaultVoice.voiceURI);
-      }
-    };
-
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    return () => { window.speechSynthesis.onvoiceschanged = null; };
-  }, [selectedVoiceURI]);
-
+  
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -100,6 +79,7 @@ export default function ChatBox({ hamiGif }: Props) {
       });
 
       const data = await res.json();
+      console.log("SERVER RESPONSE:", data);
       const rawReply = String(data.reply || "");
       const replyImageUrl = data.image_url ?? data.imageUrl ?? data.image ?? extractImageUrlFromText(rawReply);
       const cleanReply = sanitizeReplyText(rawReply);
@@ -112,16 +92,15 @@ export default function ChatBox({ hamiGif }: Props) {
         image_url: replyImageUrl,
         image: replyImageUrl,
       }] );
-      if (window.speechSynthesis && rawReply) {
-        const utterance = new SpeechSynthesisUtterance(data.reply);
-        utterance.rate = 0.95;
-        utterance.pitch = 1.4;
-        utterance.volume = 1;
-        const useVoice = voices.find(v => v.voiceURI === selectedVoiceURI) || hamiVoice;
-        if (useVoice) utterance.voice = useVoice;
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(utterance);
-      }
+    if (data.audio) {
+    const audio = new Audio(
+        `http://127.0.0.1:8000/${data.audio}`
+    );
+
+    audio.play().catch(err => {
+        console.error(err);
+    });
+}
     } catch {
       setCurrentMood("warning");
       setMessages(prev => [...prev, { sender: "hami", text: "Oops! I couldn't connect to the server 😥 Please try again." }]);
@@ -210,21 +189,7 @@ export default function ChatBox({ hamiGif }: Props) {
           ))}
         </div>
 
-        <div className="voice-picker" style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
-          <label style={{ color: "var(--text-muted)", fontWeight: 700 }}>Hami voice</label>
-          <select
-            value={selectedVoiceURI}
-            onChange={e => setSelectedVoiceURI(e.target.value)}
-            style={{ width: "100%", padding: 10, borderRadius: 10, border: "1.5px solid var(--border)", background: "white" }}
-          >
-            {voices.length === 0 && <option value="">Loading voices...</option>}
-            {voices.map(voice => (
-              <option key={voice.voiceURI} value={voice.voiceURI}>
-                {voice.name} ({voice.lang})
-              </option>
-            ))}
-          </select>
-        </div>
+
       </div>
 
       {/* ── RIGHT PANEL: Chat ── */}
