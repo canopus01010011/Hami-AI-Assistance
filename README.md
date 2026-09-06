@@ -258,3 +258,6 @@ See [`docs/API.md`](docs/API.md) for full request/response details, or the quick
 | `POST` | `/chat` | `{ "message": string }` | `{ "reply": string, "mood": string }` |
 | `GET` | `/tasks` | — | array of task rows |
 | `POST` | `/task` | `{ "title": string, "type": string, "due_date": string }` | `{ "success": true }` |
+
+
+
