@@ -50,48 +50,8 @@ graph TD
 
 All state lives in `ChatBox.tsx` — there's no global store (Redux/Zustand/Context). `Home.tsx` and `Message.tsx` are presentational; `HamiAvatar.tsx` is a pure mapping component (mood string → static asset import).
 
-## 4. Request Lifecycle (detailed)
 
-This expands on the sequence diagram in the README with the exact function calls involved.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant User
-    participant ChatBox as ChatBox.tsx
-    participant Route as main.py:/chat
-    participant Resp as get_hami_response()
-    participant Intent as detect_intent()
-    participant Extract as extract_task()
-    participant Chat as (persona call)
-    participant DB as database.py
-
-    User->>ChatBox: click "Send"
-    ChatBox->>ChatBox: setMood("thinking"); push user + "Thinking..." bubbles
-    ChatBox->>Route: POST /chat {message}
-    Route->>Resp: get_hami_response(message)
-    Resp->>Intent: detect_intent(message)
-    Intent-->>Resp: "ADD_TASK" | "GET_TASKS" | "DELETE_TASK" | "NORMAL_CHAT"
-
-    par GET_TASKS
-        Resp->>DB: get_tasks()
-        DB-->>Resp: [(id, title, type, due_date), ...]
-    and ADD_TASK
-        Resp->>Extract: extract_task(message)
-        Extract-->>Resp: raw Gemini JSON response (printed, not persisted)
-    and NORMAL_CHAT
-        Resp->>Chat: POST generateContent (persona prompt)
-        Chat-->>Resp: reply text
-    end
-
-    Resp-->>Route: { reply, mood }
-    Route-->>ChatBox: 200 OK JSON
-    ChatBox->>ChatBox: setMood(data.mood)
-    ChatBox->>ChatBox: setMessages(...) — inside updater, setMood("warning") again
-    ChatBox->>User: re-render bubble list + avatar
-```
-
-## 5. External Dependencies
+## 4. External Dependencies
 
 | Dependency | Used for | Notes |
 |---|---|---|
@@ -100,7 +60,7 @@ sequenceDiagram
 | SQLite (`hami.db`) | Task storage | File created next to wherever `uvicorn` is run from (relative path `"hami.db"`) |
 | `python-dotenv` | Loads `GEMINI_API_KEY` from `backend/.env` | No validation if the key is absent |
 
-## 6. Deployment Considerations (not yet implemented)
+## 5. Deployment Considerations (not yet implemented)
 
 The project currently assumes **local development only**:
 - Frontend fetches a hardcoded `http://127.0.0.1:8000`.
