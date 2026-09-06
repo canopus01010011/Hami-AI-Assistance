@@ -258,39 +258,3 @@ See [`docs/API.md`](docs/API.md) for full request/response details, or the quick
 | `POST` | `/chat` | `{ "message": string }` | `{ "reply": string, "mood": string }` |
 | `GET` | `/tasks` | — | array of task rows |
 | `POST` | `/task` | `{ "title": string, "type": string, "due_date": string }` | `{ "success": true }` |
-
----
-
-## Known Issues & Gaps
-
-These were spotted during a code read-through and are worth fixing before this goes further:
-
-1. **`ADD_TASK` doesn't save anything.** `get_hami_response` calls `extract_task()`, prints the result, and replies "Task detected!" — but never calls `add_task()`. The only way a task actually reaches the database is the separate `POST /task` endpoint, which the AI flow never calls.
-2. **`DELETE_TASK` is a stub.** `database.py` has a working `delete_task(task_id)`, but nothing in `main.py` or `ai.py` exposes it — the intent just returns "coming soon."
-3. **Mood bug in `ChatBox.tsx`.** After `setMood(data.mood)`, the `setMessages` updater unconditionally calls `setMood("warning")` again, so the avatar shows "warning" after literally every backend response, regardless of the real mood.
-4. **`sleeping` mood has no asset.** It's defined in `MOODS` but `HamiAvatar.tsx` doesn't import a `sleeping.gif`, so it would silently fall back to `idle` if it were ever set.
-5. **`happy` mood is never triggered** by any backend logic, even though the asset and switch case exist.
-6. **Hardcoded backend URL** (`http://127.0.0.1:8000`) in the frontend — no `.env`/config for different environments (staging, prod, different ports).
-7. **`detect_intent` has no `timeout`** on its `requests.post` call (unlike `extract_task`, which sets `timeout=20`), so a slow/hung Gemini response can block the request indefinitely.
-8. **Bare `except:` / `except Exception:` blocks** in `ai.py` swallow all errors silently (or print nothing useful), making failures hard to diagnose. The final fallback in `get_hami_response` also references `res.text` inside the `except` block, but `res` may not be defined if `requests.post` itself raised — this would throw a `NameError` instead of returning the intended error message.
-9. **No input validation on task fields.** `due_date` is stored as a free-text string (not validated as a date), and `type` is unconstrained free text.
-10. **SQLite is used with a single shared connection/cursor** (`check_same_thread=False`) at module scope — fine for a prototype, but not safe for concurrent writes under FastAPI's async workers at any real scale.
-11. **API key handling**: `GEMINI_API_KEY` is loaded from `.env`, which is good, but there's no check/error if the key is missing — requests will simply fail with an unhelpful error.
-12. **CORS is wide open** (`allow_origins=["*"]`, `allow_credentials=True`) — fine for local dev, should be locked down before any deployment.
-13. **Two Gemini calls per chat turn** (`detect_intent` + either `extract_task` or the persona chat call) adds latency and cost; could potentially be collapsed into one structured call.
-
----
-
-## Suggested Roadmap
-
-- [ ] Wire `extract_task()` output into `add_task()` so `ADD_TASK` actually persists.
-- [ ] Implement a real `DELETE_TASK` flow (match by title/fuzzy match, call `delete_task`).
-- [ ] Fix the `ChatBox.tsx` mood bug (remove the stray `setMood("warning")`).
-- [ ] Add a `sleeping.gif` and a real trigger for it (e.g., inactivity timer), or remove it from `MOODS`.
-- [ ] Add a trigger for `happy` mood (e.g., task completed, positive chat sentiment).
-- [ ] Move the backend base URL into a frontend env variable (`VITE_API_URL` or similar).
-- [ ] Add `timeout` to every outbound `requests.post` call.
-- [ ] Replace tuple-based `get_tasks()` output with named JSON objects (or a Pydantic model) for a cleaner API contract.
-- [ ] Add basic tests (backend route tests, frontend component tests) — `backend/test.py` is currently just a manual script, not an automated test.
-- [ ] Consider a proper date type/validation for `due_date`.
-- [ ] Tighten CORS before any real deployment.
